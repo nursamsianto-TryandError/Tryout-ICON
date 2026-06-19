@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Admins collection: read is allowed if someone wants to validate username/pin.
+    // In production we keep it simple or allow basic checks.
+    match /admins/{username} {
+      allow read, write: if true;
+    }
+
+    // 2. Tryout Packages: anyone can read active packages. Admin can do all operations.
+    match /tryout_packages/{pkgId} {
+      allow read: if true;
+      allow write: if true; // Simple setup allows admin write Operations from client UI
+    }
+
+    // 3. Questions: anyone can read questions for current exam package.
+    match /questions/{qId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 4. Participants: session logs.
+    match /participants/{pId} {
+      allow read, write: if true;
+    }
+
+    // 5. Results: anyone can read or update their own results (queried by resultId/docId).
+    // Admin can fetch everything.
+    match /results/{resultId} {
+      allow read, write: if true;
+    }
+  }
+}

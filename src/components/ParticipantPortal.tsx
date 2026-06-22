@@ -181,9 +181,8 @@ export function ParticipantPortal({ onNotify, branding }: ParticipantPortalProps
       setOriginalQuestionsOrdered(fetchedQuestions);
       setFirstAttemptTimeLeft(null);
       
-      // Shuffle questions list for exam security:
-      const shuffled = [...fetchedQuestions].sort(() => Math.random() - 0.5);
-      setShuffledQuestions(shuffled);
+      // Keep questions in original order as requested:
+      setShuffledQuestions([...fetchedQuestions]);
       
       // Clear answers context
       setAnswers({});
@@ -626,15 +625,27 @@ export function ParticipantPortal({ onNotify, branding }: ParticipantPortalProps
               </div>
  
               {/* Question text */}
-              <div className="min-h-[80px]">
-                <p className="text-sm font-semibold text-gray-900 leading-relaxed dark:text-white">
+              <div className="min-h-[80px] space-y-4">
+                <p className="text-sm font-semibold text-gray-900 leading-relaxed dark:text-white bg-transparent whitespace-pre-wrap">
                   {shuffledQuestions[currentQuestionIndex]?.text}
                 </p>
+                {shuffledQuestions[currentQuestionIndex]?.imageUrl && (
+                  <div className="flex justify-start w-full">
+                    <img
+                      src={shuffledQuestions[currentQuestionIndex].imageUrl}
+                      alt="Gambar Soal Tryout"
+                      className="max-h-80 md:max-h-96 object-contain rounded-xl border border-gray-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                )}
               </div>
  
               {/* Options selection container */}
               <div className="space-y-2.5">
-                {Object.entries(shuffledQuestions[currentQuestionIndex]?.options || {}).map(([key, val]) => {
+                {Object.entries(shuffledQuestions[currentQuestionIndex]?.options || {})
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([key, val]) => {
                   if (!val) return null;
                   const questionId = shuffledQuestions[currentQuestionIndex].id;
                   const isSelected = answers[questionId] === key;
@@ -656,7 +667,7 @@ export function ParticipantPortal({ onNotify, branding }: ParticipantPortalProps
                       }`}>
                         {key}
                       </span>
-                      <span className="font-medium leading-relaxed">{val}</span>
+                      <span className="font-medium leading-relaxed whitespace-pre-wrap">{val}</span>
                     </button>
                   );
                 })}

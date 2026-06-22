@@ -57,6 +57,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
   const [quesForm, setQuesForm] = useState<Omit<Question, "id">>({
     packageId: "",
     text: "",
+    imageUrl: "",
     options: { A: "", B: "", C: "", D: "", E: "" },
     correctAnswer: "A",
     scoreWeight: 10,
@@ -74,6 +75,14 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
     logoIconName: "BookOpen",
     logoUrl: ""
   });
+
+  // Custom confirmation modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   useEffect(() => {
     if (branding) {
@@ -134,52 +143,73 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
   }, [selectedPkgIdForQuestions]);
 
   // Results history deletion handlers
-  const handleDeleteSingleResult = async (id: string, name: string) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus history pengerjaan peserta '${name}'? Tindakan ini tidak dapat dibatalkan.`)) {
-      try {
-        await deleteResult(id);
-        onNotify(`History '${name}' berhasil dihapus.`, "success");
-        const resList = await getAllResults();
-        setResults(resList);
-        setSelectedResultIds((prev) => prev.filter((rId) => rId !== id));
-      } catch (err: any) {
-        onNotify("Gagal menghapus record: " + err.message, "error");
+  const handleDeleteSingleResult = (id: string, name: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus History Pengerjaan?",
+      message: `Apakah Anda yakin ingin menghapus history pengerjaan peserta '${name}'? Tindakan ini tidak dapat dibatalkan.`,
+      onConfirm: async () => {
+        try {
+          await deleteResult(id);
+          onNotify(`History '${name}' berhasil dihapus.`, "success");
+          const resList = await getAllResults();
+          setResults(resList);
+          setSelectedResultIds((prev) => prev.filter((rId) => rId !== id));
+        } catch (err: any) {
+          onNotify("Gagal menghapus record: " + err.message, "error");
+        } finally {
+          setConfirmModal(null);
+        }
       }
-    }
+    });
   };
 
-  const handleDeleteSelectedResults = async () => {
+  const handleDeleteSelectedResults = () => {
     if (selectedResultIds.length === 0) return;
-    if (window.confirm(`Apakah Anda yakin ingin menghapus ${selectedResultIds.length} history pengerjaan terpilih? Tindakan ini tidak dapat dibatalkan.`)) {
-      try {
-        await deleteMultipleResults(selectedResultIds);
-        onNotify(`${selectedResultIds.length} history pengerjaan berhasil dihapus.`, "success");
-        setSelectedResultIds([]);
-        const resList = await getAllResults();
-        setResults(resList);
-      } catch (err: any) {
-        onNotify("Gagal menghapus beberapa record: " + err.message, "error");
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus History Terpilih?",
+      message: `Apakah Anda yakin ingin menghapus ${selectedResultIds.length} history pengerjaan terpilih? Tindakan ini tidak dapat dibatalkan.`,
+      onConfirm: async () => {
+        try {
+          await deleteMultipleResults(selectedResultIds);
+          onNotify(`${selectedResultIds.length} history pengerjaan berhasil dihapus.`, "success");
+          setSelectedResultIds([]);
+          const resList = await getAllResults();
+          setResults(resList);
+        } catch (err: any) {
+          onNotify("Gagal menghapus beberapa record: " + err.message, "error");
+        } finally {
+          setConfirmModal(null);
+        }
       }
-    }
+    });
   };
 
-  const handleDeleteAllResults = async () => {
+  const handleDeleteAllResults = () => {
     const allIds = filteredResults.map((r) => r.id);
     if (allIds.length === 0) {
       onNotify("Tidak ada data history untuk dihapus.", "info");
       return;
     }
-    if (window.confirm(`APAKAH ANDA YAKIN? Tindakan ini akan menghapus SELURUH history pengerjaan (${allIds.length} item) yang sesuai filter saat ini. Tindakan ini tidak dapat dibatalkan.`)) {
-      try {
-        await deleteMultipleResults(allIds);
-        onNotify(`Seluruh ${allIds.length} history pengerjaan berhasil dibersihkan!`, "success");
-        setSelectedResultIds([]);
-        const resList = await getAllResults();
-        setResults(resList);
-      } catch (err: any) {
-        onNotify("Gagal menghapus semua record: " + err.message, "error");
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Seluruh History?",
+      message: `APAKAH ANDA YAKIN? Tindakan ini akan menghapus SELURUH history pengerjaan (${allIds.length} item) yang sesuai filter saat ini. Tindakan ini tidak dapat dibatalkan.`,
+      onConfirm: async () => {
+        try {
+          await deleteMultipleResults(allIds);
+          onNotify(`Seluruh ${allIds.length} history pengerjaan berhasil dibersihkan!`, "success");
+          setSelectedResultIds([]);
+          const resList = await getAllResults();
+          setResults(resList);
+        } catch (err: any) {
+          onNotify("Gagal menghapus semua record: " + err.message, "error");
+        } finally {
+          setConfirmModal(null);
+        }
       }
-    }
+    });
   };
 
   // Packages functions
@@ -213,7 +243,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
   const handleSavePackage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pkgForm.name.trim() || !pkgForm.description.trim()) {
-      onNotify("Please fill in the package title and description.", "error");
+      onNotify("Semua field nama dan deskripsi paket harus diisi.", "error");
       return;
     }
     try {
@@ -222,27 +252,41 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
         createdAt: editingPkg ? editingPkg.createdAt : new Date().toISOString()
       };
       await savePackage(targetPackage);
-      onNotify(`Package '${pkgForm.name}' saved successfully.`, "success");
+      onNotify(`Paket '${pkgForm.name}' berhasil disimpan.`, "success");
       setPkgModalOpen(false);
+      
+      // Auto-select and jump to questions tab if this was a new package creation!
+      if (!editingPkg) {
+        setSelectedPkgIdForQuestions(targetPackage.id);
+        setActiveTab("questions");
+      }
+      
       loadData();
     } catch (err: any) {
-      onNotify("Failed to save package: " + err.message, "error");
+      onNotify("Gagal menyimpan paket: " + err.message, "error");
     }
   };
 
-  const handleDeletePackage = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete package '${name}'? This will delete all associated questions and can lead to broken results history.`)) {
-      try {
-        await deletePackage(id);
-        onNotify("Package deleted successfully.", "success");
-        if (selectedPkgIdForQuestions === id) {
-          setSelectedPkgIdForQuestions("");
+  const handleDeletePackage = (id: string, name: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Paket Soal?",
+      message: `Apakah Anda yakin ingin menghapus paket soal '${name}'? Tindakan ini akan menghapus semua soal yang berasosiasi dengannya dan dapat merusak riwayat pengerjaan hasil.`,
+      onConfirm: async () => {
+        try {
+          await deletePackage(id);
+          onNotify(`Paket '${name}' berhasil dihapus.`, "success");
+          if (selectedPkgIdForQuestions === id) {
+            setSelectedPkgIdForQuestions("");
+          }
+          loadData();
+        } catch (err: any) {
+          onNotify("Gagal menghapus paket: " + err.message, "error");
+        } finally {
+          setConfirmModal(null);
         }
-        loadData();
-      } catch (err: any) {
-        onNotify("Failed to delete package: " + err.message, "error");
       }
-    }
+    });
   };
 
   const handleTogglePackageActive = async (pkg: TryoutPackage) => {
@@ -263,6 +307,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
       setQuesForm({
         packageId: ques.packageId,
         text: ques.text,
+        imageUrl: ques.imageUrl || "",
         options: {
           A: ques.options.A,
           B: ques.options.B,
@@ -279,6 +324,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
       setQuesForm({
         packageId: selectedPkgIdForQuestions,
         text: "",
+        imageUrl: "",
         options: { A: "", B: "", C: "", D: "", E: "" },
         correctAnswer: "A",
         scoreWeight: 10,
@@ -288,10 +334,64 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
     setQuesModalOpen(true);
   };
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 3 * 1024 * 1024) {
+      onNotify("Ukuran file terlalu besar. Pilih file di bawah 3MB.", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const src = event.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const MAX_DIM = 800;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.75);
+          setQuesForm(prev => ({ ...prev, imageUrl: compressedBase64 }));
+          onNotify("Gambar berhasil di-upload dan dikompresi.", "success");
+        } else {
+          setQuesForm(prev => ({ ...prev, imageUrl: src }));
+        }
+      };
+      img.onerror = () => {
+        onNotify("Gagal memuat file gambar.", "error");
+      };
+      img.src = src;
+    };
+    reader.onerror = () => {
+      onNotify("Gagal membaca file gambar.", "error");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!quesForm.packageId) {
+      onNotify("Silakan pilih paket soal terlebih dahulu.", "error");
+      return;
+    }
     if (!quesForm.text.trim() || !quesForm.options.A.trim() || !quesForm.options.B.trim() || !quesForm.options.C.trim() || !quesForm.options.D.trim()) {
-      onNotify("Please fill in the question text and at least 4 options (A-D).", "error");
+      onNotify("Harap isi teks pertanyaan dan minimal 4 pilihan jawaban (A sampai D).", "error");
       return;
     }
     try {
@@ -300,6 +400,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
         id: qId,
         packageId: quesForm.packageId,
         text: quesForm.text,
+        ...(quesForm.imageUrl?.trim() ? { imageUrl: quesForm.imageUrl.trim() } : {}),
         options: {
           A: quesForm.options.A,
           B: quesForm.options.B,
@@ -309,31 +410,44 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
         },
         correctAnswer: quesForm.correctAnswer,
         scoreWeight: Number(quesForm.scoreWeight),
-        explanation: quesForm.explanation?.trim() ? quesForm.explanation.trim() : undefined
+        ...(quesForm.explanation?.trim() ? { explanation: quesForm.explanation.trim() } : {})
       };
 
       await saveQuestion(finalQuestion);
-      onNotify("Question saved successfully.", "success");
+      onNotify("Pertanyaan berhasil disimpan.", "success");
       setQuesModalOpen(false);
-      // reload questions lists
-      const qList = await getQuestionsForPackage(selectedPkgIdForQuestions);
-      setQuestions(qList);
+      
+      // Keep selected package in sync with where the question was saved
+      if (quesForm.packageId !== selectedPkgIdForQuestions) {
+        setSelectedPkgIdForQuestions(quesForm.packageId);
+      } else {
+        // reload questions list
+        const qList = await getQuestionsForPackage(selectedPkgIdForQuestions);
+        setQuestions(qList);
+      }
     } catch (err: any) {
-      onNotify("Failed to save question: " + err.message, "error");
+      onNotify("Gagal menyimpan pertanyaan: " + err.message, "error");
     }
   };
 
-  const handleDeleteQuestion = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this question?")) {
-      try {
-        await deleteQuestion(id);
-        onNotify("Question deleted successfully.", "success");
-        const qList = await getQuestionsForPackage(selectedPkgIdForQuestions);
-        setQuestions(qList);
-      } catch (err: any) {
-        onNotify("Failed to delete question: " + err.message, "error");
+  const handleDeleteQuestion = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Pertanyaan?",
+      message: "Apakah Anda yakin ingin menghapus pertanyaan ini dari paket soal?",
+      onConfirm: async () => {
+        try {
+          await deleteQuestion(id);
+          onNotify("Pertanyaan berhasil dihapus.", "success");
+          const qList = await getQuestionsForPackage(selectedPkgIdForQuestions);
+          setQuestions(qList);
+        } catch (err: any) {
+          onNotify("Gagal menghapus pertanyaan: " + err.message, "error");
+        } finally {
+          setConfirmModal(null);
+        }
       }
-    }
+    });
   };
 
   // PDF Export single result
@@ -732,6 +846,13 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                   <h3 className="text-sm font-bold text-gray-950 dark:text-white uppercase tracking-wider">Exam Packages Registry</h3>
                   <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Configure active exam sessions, set passwords, thresholds, and timers.</p>
                 </div>
+                <button
+                  onClick={() => handleOpenPkgModal(null)}
+                  className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition cursor-pointer self-start sm:self-auto shrink-0"
+                >
+                  <Plus className="h-4.5 w-4.5" />
+                  Buat Paket Baru
+                </button>
               </div>
 
               {packages.length === 0 ? (
@@ -791,17 +912,28 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                             </button>
                           </td>
                           <td className="py-4 px-6">
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center justify-center gap-2.5">
+                              <button
+                                onClick={() => {
+                                  setSelectedPkgIdForQuestions(pkg.id);
+                                  setActiveTab("questions");
+                                }}
+                                className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition cursor-pointer dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/30"
+                                title="Kelola pertanyaan di paket ini"
+                              >
+                                <HelpCircle className="h-3.5 w-3.5" />
+                                Kelola Soal
+                              </button>
                               <button
                                 onClick={() => handleOpenPkgModal(pkg)}
-                                className="p-1 text-gray-400 hover:text-blue-600 transition"
+                                className="p-1 text-gray-400 hover:text-blue-600 transition cursor-pointer"
                                 title="Edit package attributes"
                               >
                                 <Edit2 className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={() => handleDeletePackage(pkg.id, pkg.name)}
-                                className="p-1 text-gray-400 hover:text-red-500 transition"
+                                className="p-1 text-gray-400 hover:text-red-500 transition cursor-pointer"
                                 title="Delete Package"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -876,9 +1008,21 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                               {idx + 1}
                             </span>
                             
-                            <p className="text-xs font-semibold text-gray-900 grow leading-relaxed dark:text-white bg-transparent">
-                              {q.text}
-                            </p>
+                            <div className="grow space-y-2">
+                              <p className="text-xs font-semibold text-gray-900 leading-relaxed dark:text-white bg-transparent whitespace-pre-wrap">
+                                {q.text}
+                              </p>
+                              {q.imageUrl && (
+                                <div className="flex justify-start">
+                                  <img
+                                    src={q.imageUrl}
+                                    alt="Question Visual Preview"
+                                    className="max-h-24 object-contain rounded border border-gray-200 bg-white p-0.5 dark:border-slate-800 dark:bg-slate-900"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                              )}
+                            </div>
 
                             <div className="flex items-center gap-1 shrink-0">
                               <span className="text-[10px] font-bold bg-gray-200/70 text-gray-700 rounded-sm px-1.5 py-0.5 mr-2 dark:bg-slate-750 dark:text-slate-300">
@@ -920,7 +1064,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                                   }`}>
                                     {key}
                                   </span>
-                                  <span>{val}</span>
+                                  <span className="whitespace-pre-wrap">{val}</span>
                                 </div>
                               );
                             })}
@@ -930,7 +1074,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                           {q.explanation && (
                             <div className="pl-10 text-[11px] text-gray-400 italic flex items-start gap-1">
                               <span className="font-bold text-gray-500 dark:text-slate-400 not-italic shrink-0">Solution key:</span>
-                              <span className="dark:text-slate-350">{q.explanation}</span>
+                              <span className="dark:text-slate-350 whitespace-pre-wrap">{q.explanation}</span>
                             </div>
                           )}
                         </div>
@@ -1424,6 +1568,23 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
 
             <form onSubmit={handleSaveQuestion} className="mt-4 space-y-4 text-xs">
               <div>
+                <label className="block text-xs font-semibold text-gray-650 dark:text-slate-350 mb-1">Target Paket Soal (Target Package)</label>
+                <select
+                  required
+                  value={quesForm.packageId}
+                  onChange={(e) => setQuesForm({ ...quesForm, packageId: e.target.value })}
+                  className="w-full rounded-lg border border-gray-200 bg-white p-2.5 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="">-- Pilih Paket Soal Target --</option>
+                  {packages.map((pkg) => (
+                    <option key={pkg.id} value={pkg.id}>
+                      {pkg.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-gray-650 dark:text-slate-350 mb-1">Question Statement</label>
                 <textarea
                   required
@@ -1433,6 +1594,58 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                   onChange={(e) => setQuesForm({ ...quesForm, text: e.target.value })}
                   className="w-full rounded-lg border border-gray-200 bg-white p-2.5 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-650 dark:text-slate-350 mb-1">
+                  Gambar Soal (Opsi Tambahan Gambar)
+                </label>
+                <div className="space-y-3 rounded-xl border border-dashed border-gray-200 bg-gray-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <span className="block text-[10px] text-gray-500 mb-1">Paste Image URL:</span>
+                      <input
+                        type="url"
+                        placeholder="https://example.com/image.png"
+                        value={quesForm.imageUrl?.startsWith("data:") ? "" : quesForm.imageUrl || ""}
+                        onChange={(e) => setQuesForm({ ...quesForm, imageUrl: e.target.value })}
+                        className="w-full rounded-md border border-gray-200 bg-white p-2 text-[11px] font-semibold text-gray-700 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-gray-500 mb-1">Upload File Local:</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageFileChange}
+                        className="w-full text-[11px] text-gray-550 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 file:text-blue-700 file:cursor-pointer hover:file:bg-blue-100 dark:file:bg-blue-950/40 dark:file:text-blue-300"
+                      />
+                    </div>
+                  </div>
+
+                  {quesForm.imageUrl && (
+                    <div className="mt-2 flex items-center gap-3 border-t border-gray-100 dark:border-slate-800 pt-2 bg-transparent">
+                      <img
+                        src={quesForm.imageUrl}
+                        alt="Preview"
+                        className="h-14 w-20 object-contain rounded-md border border-gray-200 bg-white p-0.5 dark:border-slate-750 dark:bg-slate-800"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="grow">
+                        <span className="text-[10px] text-emerald-650 dark:text-emerald-400 font-semibold block">
+                          {quesForm.imageUrl.startsWith("data:") ? "✓ File gambar di-upload (Base64)" : "✓ Link URL gambar aktif"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setQuesForm({ ...quesForm, imageUrl: "" })}
+                          className="text-[10px] text-red-650 hover:underline font-bold mt-0.5 block cursor-pointer transition active:scale-95"
+                        >
+                          Hapus Gambar (Clear Image)
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Options inputs */}
@@ -1558,6 +1771,44 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirmation Dialog */}
+      {confirmModal && confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-[2px]">
+          <div className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-slate-900 border border-gray-150/70 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/30 text-red-600 dark:text-red-400">
+                <AlertCircle className="h-5.5 w-5.5" />
+              </div>
+              <div className="grow">
+                <h3 className="text-base font-bold text-gray-950 dark:text-white">
+                  {confirmModal.title}
+                </h3>
+                <p className="mt-2 text-xs font-medium text-gray-500 dark:text-slate-400 leading-relaxed bg-transparent">
+                  {confirmModal.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2 border-t border-gray-100 dark:border-slate-800 pt-4">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="rounded-lg bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-750 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition cursor-pointer"
+              >
+                Batal (Cancel)
+              </button>
+              <button
+                type="button"
+                onClick={confirmModal.onConfirm}
+                className="rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 transition cursor-pointer active:scale-95"
+              >
+                Hapus (Confirm)
+              </button>
+            </div>
           </div>
         </div>
       )}

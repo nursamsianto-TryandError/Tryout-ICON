@@ -29,5 +29,10 @@ service cloud.firestore {
     match /results/{resultId} {
       allow read, write: if true;
     }
+
+    // 6. Portal Settings: anyone can read. Admin can write.
+    match /portal_settings/{settingId} {
+      allow read, write: if true;
+    }
   }
 }

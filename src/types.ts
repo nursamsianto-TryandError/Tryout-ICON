@@ -18,6 +18,7 @@ export interface Question {
   id: string;
   packageId: string;
   text: string;
+  imageUrl?: string; // Optional image URL or base64 data for the question
   options: {
     A: string;
     B: string;

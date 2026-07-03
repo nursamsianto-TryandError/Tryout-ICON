@@ -12,6 +12,7 @@ export interface TryoutPackage {
   passingGrade: number; // target score, default 65
   isActive: boolean;
   createdAt: any; // Firestore Timestamp or ISO string
+  secondAttemptThreshold?: number; // customizable threshold, defaults to 45
 }
 
 export interface Question {

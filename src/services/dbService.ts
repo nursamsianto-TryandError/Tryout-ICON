@@ -38,7 +38,8 @@ export async function seedInitialDataIfEmpty() {
       duration: 10, // 10 menit
       passingGrade: 65,
       isActive: true,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      secondAttemptThreshold: 45
     };
     await setDoc(doc(db, "tryout_packages", pkg1Id), pkg1Data);
 
@@ -114,7 +115,8 @@ export async function seedInitialDataIfEmpty() {
       duration: 15,
       passingGrade: 65,
       isActive: true,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      secondAttemptThreshold: 45
     };
     await setDoc(doc(db, "tryout_packages", pkg2Id), pkg2Data);
 
@@ -309,20 +311,32 @@ export async function submitTryoutAnswers(data: SubmissionData): Promise<TryoutR
   const rawScore = totalWeight > 0 ? (scorePoints / totalWeight) * 100 : 0;
   const roundedScore = Math.round(rawScore * 10) / 10; // keep one decimal point
 
+  // Load custom package thresholds from database
+  let passGrade = 65;
+  let secondAttemptMin = 45;
+  try {
+    const pkgSnap = await getDoc(doc(db, "tryout_packages", packageId));
+    if (pkgSnap.exists()) {
+      const pkgData = pkgSnap.data() as TryoutPackage;
+      if (pkgData.passingGrade !== undefined) {
+        passGrade = pkgData.passingGrade;
+      }
+      if (pkgData.secondAttemptThreshold !== undefined) {
+        secondAttemptMin = pkgData.secondAttemptThreshold;
+      }
+    }
+  } catch (e) {
+    console.error("Error loading package thresholds:", e);
+  }
+
   if (attemptNum === 1) {
     // Determine status based on Rules
-    // Rule 1: PASS if >= 65
-    // Rule 2: SECOND ATTEMPT if 40-64
-    // Rule 3: FAIL if < 40
+    // Rule 1: PASS if >= passGrade
+    // Rule 2: SECOND ATTEMPT if roundedScore >= secondAttemptMin and < passGrade
+    // Rule 3: FAIL if < secondAttemptMin
     let status: "PASS" | "FAIL" = "FAIL";
-    if (roundedScore >= 65) {
+    if (roundedScore >= passGrade) {
       status = "PASS";
-    } else if (roundedScore >= 40) {
-      // Though technically they get a second attempt, their CURRENT status is stored as FAIL until they finish 2nd attempt,
-      // or we can flag the result so they can access the 2nd attempt. We will set status based on final logic.
-      // But the TryoutResult model status is "PASS" | "FAIL".
-      // Let's store "FAIL" unless they pass later, but we will track attemptCount = 1 to trigger eligibility in UI.
-      status = "FAIL";
     } else {
       status = "FAIL";
     }
@@ -402,7 +416,7 @@ export async function submitTryoutAnswers(data: SubmissionData): Promise<TryoutR
 
     const finalRawScore = totalWeight > 0 ? (totalCorrectWeight / totalWeight) * 100 : 0;
     const finalRoundedScore = Math.round(finalRawScore * 10) / 10;
-    const finalStatus = finalRoundedScore >= 65 ? "PASS" : "FAIL";
+    const finalStatus = finalRoundedScore >= passGrade ? "PASS" : "FAIL";
 
     const updatedResult: TryoutResult = {
       ...prevResult,

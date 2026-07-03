@@ -47,6 +47,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
     duration: 15,
     passingGrade: 65,
     isActive: true,
+    secondAttemptThreshold: 45,
   });
 
   // Questions management states
@@ -224,6 +225,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
         duration: pkg.duration,
         passingGrade: pkg.passingGrade,
         isActive: pkg.isActive,
+        secondAttemptThreshold: pkg.secondAttemptThreshold ?? 45,
       });
     } else {
       setEditingPkg(null);
@@ -235,6 +237,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
         duration: 15,
         passingGrade: 65,
         isActive: true,
+        secondAttemptThreshold: 45,
       });
     }
     setPkgModalOpen(true);
@@ -875,6 +878,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                         <th className="py-3 px-4">Passcode</th>
                         <th className="py-3 px-4 text-center">Duration</th>
                         <th className="py-3 px-4 text-center">Passing Grade</th>
+                        <th className="py-3 px-4 text-center">2nd Attempt Min</th>
                         <th className="py-3 px-4 text-center">Status</th>
                         <th className="py-3 px-6 text-center">Actions</th>
                       </tr>
@@ -897,6 +901,11 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                           <td className="py-4 px-4 text-center">
                             <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
                               {pkg.passingGrade}%
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                              {pkg.secondAttemptThreshold ?? 45}%
                             </span>
                           </td>
                           <td className="py-4 px-4 text-center">
@@ -1521,6 +1530,19 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                   max={100}
                   value={pkgForm.passingGrade}
                   onChange={(e) => setPkgForm({ ...pkgForm, passingGrade: Number(e.target.value) })}
+                  className="w-full rounded-lg border border-gray-200 bg-white p-2.5 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-650 dark:text-slate-350 mb-1">Ambang Batas Minimal Percobaan Kedua (%) / Second Attempt Min Threshold (%)</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  max={100}
+                  value={pkgForm.secondAttemptThreshold ?? 45}
+                  onChange={(e) => setPkgForm({ ...pkgForm, secondAttemptThreshold: Number(e.target.value) })}
                   className="w-full rounded-lg border border-gray-200 bg-white p-2.5 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
                 />
               </div>

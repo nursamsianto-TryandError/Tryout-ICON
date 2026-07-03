@@ -559,7 +559,7 @@ export function ParticipantPortal({ onNotify, branding }: ParticipantPortalProps
             <div className="rounded-2xl border border-gray-150 bg-white p-5 shadow-xs lg:col-span-1 dark:border-slate-850 dark:bg-slate-900 space-y-4">
               <h4 className="text-xs font-bold text-gray-950 uppercase tracking-widest dark:text-white border-b border-gray-100 dark:border-slate-800 pb-2">Navigasi Soal</h4>
               
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 {shuffledQuestions.map((q, idx) => {
                    const isAnswered = answers[q.id] !== undefined;
                    const isReviewed = markedForReview[q.id] === true;
@@ -780,40 +780,48 @@ export function ParticipantPortal({ onNotify, branding }: ParticipantPortalProps
           </div>
 
           {/* ELEVATED AUTOMATED TRYOUT LOGIC: Rule 2 TRIGGER BUTTON (Second Attempt) */}
-          {/* If first run was between 40 and 64, and attemptCount is 1, let's offer immediate retry of INCORRECT ONES */}
-          {existingResult.finalScore >= 40 && existingResult.finalScore < 65 && existingResult.attemptCount === 1 ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-6 shadow-xs dark:border-amber-900/40 dark:bg-amber-950/15 space-y-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5.5 w-5.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider dark:text-amber-300">
-                    Berhak Mengikuti Percobaan Kedua (Perbaikan)!
-                  </h4>
-                  <p className="text-xs text-amber-850 dark:text-amber-400 mt-1 leading-relaxed">
-                    Berdasarkan panduan standar <span className="font-bold">Aturan 2</span> tryout, karena nilai awal Anda berada di antara <span className="font-bold">40% dan 64%</span>, Anda berhak mendapatkan tepat SATU kesempatan perbaikan yang berfokus <span className="font-bold">HANYA pada soal-soal yang salah sebelumnya</span> ({existingResult.incorrectQuestions.length} soal salah yang tersisa). Memperbaikinya akan meningkatkan skor akhir Anda!
-                  </p>
+          {(() => {
+            const secondAttemptThreshold = currentPackage?.secondAttemptThreshold ?? 45;
+            const passingGrade = currentPackage?.passingGrade ?? 65;
+            const isEligibleForSecondAttempt = 
+              existingResult.finalScore >= secondAttemptThreshold && 
+              existingResult.finalScore < passingGrade && 
+              existingResult.attemptCount === 1;
+
+            return isEligibleForSecondAttempt ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-6 shadow-xs dark:border-amber-900/40 dark:bg-amber-950/15 space-y-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5.5 w-5.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider dark:text-amber-300">
+                      Berhak Mengikuti Percobaan Kedua (Perbaikan)!
+                    </h4>
+                    <p className="text-xs text-amber-850 dark:text-amber-400 mt-1 leading-relaxed">
+                      Berdasarkan panduan standar <span className="font-bold">Aturan 2</span> tryout, karena nilai awal Anda berada di antara <span className="font-bold">{secondAttemptThreshold}% dan {passingGrade - 1}%</span>, Anda berhak mendapatkan tepat SATU kesempatan perbaikan yang berfokus <span className="font-bold">HANYA pada soal-soal yang salah sebelumnya</span> ({existingResult.incorrectQuestions.length} soal salah yang tersisa). Memperbaikinya akan meningkatkan skor akhir Anda!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={handleStartSecondAttempt}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-3 text-xs font-bold text-white shadow-md shadow-amber-500/10 hover:bg-amber-700 transition"
+                  >
+                    <RefreshCw className="h-4 w-4 animate-spin-slow" />
+                    Second Attempt
+                  </button>
                 </div>
               </div>
-
-              <div className="pt-2">
-                <button
-                  onClick={handleStartSecondAttempt}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-3 text-xs font-bold text-white shadow-md shadow-amber-500/10 hover:bg-amber-700 transition"
-                >
-                  <RefreshCw className="h-4 w-4 animate-spin-slow" />
-                  Kerjakan Perbaikan Soal Salah Sekarang
-                </button>
+            ) : (
+              <div className="rounded-2xl border border-gray-150 bg-slate-50 p-5 text-center dark:border-slate-800 dark:bg-slate-850/30">
+                <p className="text-xs text-gray-450 dark:text-slate-500 font-medium">
+                  {existingResult.finalScore >= passingGrade 
+                    ? "✓ Selamat! Anda telah berhasil melampaui batas kelulusan yang ditentukan!" 
+                    : `✗ Nilai Anda berada di bawah ambang batas minimal ${secondAttemptThreshold}% - tidak diizinkan melakukan percobaan kedua berdasarkan Aturan 3.`}
+                </p>
               </div>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-gray-150 bg-slate-50 p-5 text-center dark:border-slate-800 dark:bg-slate-850/30">
-              <p className="text-xs text-gray-450 dark:text-slate-500 font-medium">
-                {existingResult.finalScore >= 65 
-                  ? "✓ Selamat! Anda telah berhasil melampaui batas kelulusan yang ditentukan!" 
-                  : "✗ Nilai Anda berada di bawah ambang batas minimal 40% - tidak diizinkan melakukan percobaan kedua berdasarkan Aturan 3."}
-              </p>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Action Footer switch and signouts */}
           <div className="flex justify-center gap-3">

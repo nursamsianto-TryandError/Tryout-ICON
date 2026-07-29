@@ -59,6 +59,18 @@ export default function App() {
     }
   }, []);
 
+  // Update browser tab document.title based on branding & currentView
+  useEffect(() => {
+    const rawPrefix = branding?.logoTextPrefix || "Tryout";
+    const rawSuffix = branding?.logoTextSuffix === "ICONTC" ? "ICON TC" : (branding?.logoTextSuffix || "ICON TC");
+    const brandName = `${rawPrefix.trim()} ${rawSuffix.trim()}`.trim();
+    if (currentView === "admin") {
+      document.title = `${brandName} - Konsol Admin`;
+    } else {
+      document.title = `${brandName} - Portal Peserta`;
+    }
+  }, [branding, currentView]);
+
   // Update DOM classes for Dark Mode support
   useEffect(() => {
     const root = window.document.documentElement;

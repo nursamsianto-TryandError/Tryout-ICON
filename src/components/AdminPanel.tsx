@@ -9,7 +9,7 @@ import {
   LayoutDashboard, FolderKanban, HelpCircle, FileSpreadsheet, 
   Plus, Edit2, Trash2, CheckCircle2, XCircle, Search, 
   Download, Calendar, Award, GraduationCap, Clock, Filter, 
-  Check, AlertCircle, RefreshCw, Settings, Sparkles
+  Check, AlertCircle, RefreshCw, Settings, Sparkles, Trophy, BookOpen, ShieldCheck, BrainCircuit, Zap
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 
@@ -470,7 +470,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
-      doc.text("TRYOUT LMS EXAM CERTIFICATE", 15, 25);
+      doc.text("TRYOUT ICON TC EXAM CERTIFICATE", 15, 25);
       
       doc.setFontSize(10);
       doc.setFont("helvetica", "italic");
@@ -545,13 +545,13 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
       doc.text("Verification Statement:", 15, 165);
       doc.setFont("helvetica", "italic");
       doc.setTextColor(grayLight);
-      doc.text(`This document verifies that the participant has simulated the Tryout online exam successfully. All marks are computed automatically and secured by Tryout LMS data registries.`, 15, 172, { maxWidth: 180 });
+      doc.text(`This document verifies that the participant has simulated the Tryout ICON TC online exam successfully. All marks are computed automatically and secured by Tryout ICON TC data registries.`, 15, 172, { maxWidth: 180 });
 
       // Footnote
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(grayLight);
-      doc.text("Tryout LMS Admin Portal - Authentic Validation Key: " + res.id, 15, 280);
+      doc.text("Tryout ICON TC Admin Portal - Authentic Validation Key: " + res.id, 15, 280);
 
       doc.save(`result_${res.participantName.replace(/\s+/g, "_")}.pdf`);
       onNotify(`Receipt for ${res.participantName} exported as PDF successfully!`, "success");
@@ -1325,7 +1325,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                         value={bForm.title}
                         onChange={(e) => setBForm({ ...bForm, title: e.target.value })}
                         required
-                        placeholder="Simulasikan Ujian Tryout Anda Dengan Keyakinan Penuh."
+                        placeholder="Simulasi Ujian Tryout ICON TC"
                         className="w-full rounded-lg border border-gray-250 bg-white p-3 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
                       />
                     </div>
@@ -1423,6 +1423,42 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                             required={bForm.logoType === "url"}
                             className="w-full rounded-lg border border-amber-300 bg-white p-2.5 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
                           />
+                        </div>
+                      )}
+
+                      {bForm.logoType === "icon" && (
+                        <div className="sm:col-span-2 md:col-span-3 pt-1">
+                          <label className="block font-bold text-gray-700 dark:text-slate-350 mb-1.5 text-[10px] uppercase">Pilih Simbol Icon Vector Brand</label>
+                          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                            {[
+                              { name: "GraduationCap", label: "Kelulusan", icon: GraduationCap },
+                              { name: "Award", label: "Penghargaan", icon: Award },
+                              { name: "Trophy", label: "Piala", icon: Trophy },
+                              { name: "BookOpen", label: "Buku", icon: BookOpen },
+                              { name: "ShieldCheck", label: "Perisai", icon: ShieldCheck },
+                              { name: "BrainCircuit", label: "Kecerdasan", icon: BrainCircuit },
+                              { name: "Sparkles", label: "Prestasi", icon: Sparkles },
+                              { name: "Zap", label: "Kilat", icon: Zap },
+                            ].map((item) => {
+                              const IconComp = item.icon;
+                              const isSelected = (bForm.logoIconName || "BookOpen") === item.name;
+                              return (
+                                <button
+                                  key={item.name}
+                                  type="button"
+                                  onClick={() => setBForm({ ...bForm, logoIconName: item.name })}
+                                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 font-bold shadow-xs ring-2 ring-blue-500/20"
+                                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-slate-750 dark:bg-slate-850 dark:text-slate-400"
+                                  }`}
+                                >
+                                  <IconComp className="h-5 w-5 mb-1" />
+                                  <span className="text-[10px]">{item.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>

@@ -1,6 +1,6 @@
 {
-  "name": "Tryout LMS",
-  "description": "Sistem simulasi ujian tryout online yang cepat, responsif, dan mudah digunakan untuk ICON Training Center.",
+  "name": "Tryout ICON TC",
+  "description": "Sistem simulasi ujian tryout online resmi Tryout ICON TC (ICON Training Center).",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, ShieldCheck, Moon, Sun } from "lucide-react";
+import { GraduationCap, Award, Trophy, BookOpen, ShieldCheck, BrainCircuit, Sparkles, Zap, Moon, Sun } from "lucide-react";
 import { BrandingSettings } from "../types";
 
 interface NavbarProps {
@@ -21,18 +21,36 @@ export function Navbar({
   onAdminLogout,
   branding
 }: NavbarProps) {
-  const logoPrefix = branding?.logoTextPrefix || "Tryout";
-  const logoSuffix = branding?.logoTextSuffix || "ICONTC";
-  const logoSub = branding?.logoSubtext || "ICON Training Center Exam Simulation System";
+  const rawPrefix = branding?.logoTextPrefix || "Tryout";
+  const logoPrefix = rawPrefix.trim() + " ";
+  const logoSuffix = (branding?.logoTextSuffix === "ICONTC" ? "ICON TC" : (branding?.logoTextSuffix || "ICON TC")).trim();
+  const logoSub = branding?.logoSubtext || "ICON TC Exam Simulation System";
   const logoType = branding?.logoType || "icon";
   const logoUrl = branding?.logoUrl || "";
+
+  const renderLogoIcon = () => {
+    const iconName = branding?.logoIconName || "BookOpen";
+    const iconProps = { className: "h-5.5 w-5.5 transition-transform duration-300 group-hover:scale-110" };
+    switch (iconName) {
+      case "Award": return <Award {...iconProps} />;
+      case "Trophy": return <Trophy {...iconProps} />;
+      case "BookOpen": return <BookOpen {...iconProps} />;
+      case "ShieldCheck": return <ShieldCheck {...iconProps} />;
+      case "BrainCircuit": return <BrainCircuit {...iconProps} />;
+      case "Sparkles": return <Sparkles {...iconProps} />;
+      case "Zap": return <Zap {...iconProps} />;
+      case "GraduationCap":
+      default:
+        return <GraduationCap {...iconProps} />;
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-gray-100 bg-white/85 shadow-xs backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/85">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo / Brand Name */}
         <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shadow-md shadow-blue-500/20">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shadow-md shadow-blue-500/20 group ring-2 ring-blue-500/20 dark:ring-blue-400/30 transition-all hover:shadow-lg hover:shadow-blue-500/30">
             {logoType === "url" && logoUrl ? (
               <img
                 src={logoUrl}
@@ -41,8 +59,8 @@ export function Navbar({
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-blue-600 text-white dark:bg-blue-500">
-                <BookOpen className="h-5.5 w-5.5" />
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white dark:from-blue-500 dark:via-indigo-500 dark:to-violet-500">
+                {renderLogoIcon()}
               </div>
             )}
           </div>

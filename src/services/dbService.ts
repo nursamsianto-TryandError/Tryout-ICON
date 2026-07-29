@@ -448,11 +448,11 @@ export async function getAllResults(): Promise<TryoutResult[]> {
 // ---------------- GLOBAL PORTAL BRANDING SETTINGS ----------------
 
 export const DEFAULT_BRANDING: BrandingSettings = {
-  title: "Simulasikan Ujian Tryout Anda Dengan Keyakinan Penuh.",
-  description: "Selamat datang di sistem simulasi ujian tryout profesional ICON Training Center! Masukkan detail identitas diri Anda, gunakan kata sandi paket dari instruktur, dan mulailah mengerjakan asesmen simulasi terstandar dengan hasil evaluasi instan.",
-  logoTextPrefix: "Tryout",
-  logoTextSuffix: "ICONTC",
-  logoSubtext: "ICON Training Center Exam Simulation System",
+  title: "Simulasi Ujian Tryout ICON TC",
+  description: "Selamat datang di sistem simulasi ujian Tryout ICON TC (ICON Training Center)! Masukkan detail identitas diri Anda, gunakan kata sandi paket dari instruktur, dan mulailah mengerjakan asesmen simulasi terstandar dengan hasil evaluasi instan.",
+  logoTextPrefix: "Tryout ",
+  logoTextSuffix: "ICON TC",
+  logoSubtext: "ICON TC Exam Simulation System",
   logoType: "icon",
   logoIconName: "BookOpen",
   logoUrl: ""

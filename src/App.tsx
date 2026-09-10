@@ -4,13 +4,16 @@ import { ParticipantPortal } from "./components/ParticipantPortal";
 import { AdminPanel } from "./components/AdminPanel";
 import { validateAdminLogin, seedInitialDataIfEmpty, getBrandingSettings } from "./services/dbService";
 import { BrandingSettings } from "./types";
-import { ShieldAlert, Key, User, CheckCircle, AlertCircle, RefreshCw, Sparkles } from "lucide-react";
+import { ShieldAlert, Key, User, CheckCircle, AlertCircle, RefreshCw, Sparkles, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
   const [currentView, setCurrentView] = useState<"participant" | "admin">("participant");
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
+  const [loggedInAdmin, setLoggedInAdmin] = useState<string>(() => {
+    return localStorage.getItem("admin_username") || "admin";
+  });
   const [branding, setBranding] = useState<BrandingSettings | null>(null);
   
   // Admin Login Form States
@@ -114,7 +117,10 @@ export default function App() {
       const isValid = await validateAdminLogin(adminUsername, adminPin);
       if (isValid) {
         setIsAdminLoggedIn(true);
+        const activeUser = adminUsername.trim();
         localStorage.setItem("admin_session_active", "true");
+        localStorage.setItem("admin_username", activeUser);
+        setLoggedInAdmin(activeUser);
         addNotification("Validasi Admin berhasil!", "success");
       } else {
         addNotification("Nama pengguna atau kode PIN akses salah.", "error");
@@ -129,6 +135,7 @@ export default function App() {
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
     localStorage.removeItem("admin_session_active");
+    localStorage.removeItem("admin_username");
     setAdminUsername("");
     setAdminPin("");
     addNotification("Berhasil keluar dari Admin.", "info");
@@ -175,6 +182,8 @@ export default function App() {
                   onNotify={addNotification} 
                   branding={branding} 
                   onBrandingUpdate={setBranding} 
+                  currentAdminUsername={loggedInAdmin}
+                  onAdminUsernameChange={setLoggedInAdmin}
                 />
               ) : (
                 /* Elegant Admin Sign-In Panel */
@@ -227,7 +236,7 @@ export default function App() {
                       <button
                         type="submit"
                         disabled={authLoading}
-                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-500/15 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 transition"
+                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-500/15 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 transition cursor-pointer"
                       >
                         {authLoading ? (
                           <>
@@ -240,8 +249,9 @@ export default function App() {
                       </button>
                     </form>
 
-                    <div className="text-center text-[11px] text-gray-400 mt-5 border-t border-gray-100 dark:border-slate-800 pt-3 dark:text-slate-500 font-medium">
-                      🔑 <span className="underline">Catatan Instruktur/Admin:</span> Gunakan nama pengguna default <span className="font-bold">admin</span> dan PIN akses <span className="font-bold">admin123</span> untuk masuk ke pengaturan simulator!
+                    <div className="flex items-center justify-center gap-1.5 text-center text-[11px] text-gray-400 mt-5 border-t border-gray-100 dark:border-slate-800 pt-3 dark:text-slate-500 font-medium">
+                      <Lock className="h-3.5 w-3.5 text-gray-400 dark:text-slate-500" />
+                      <span>Area Terproteksi • Akses Khusus Instruktur & Admin ICON TC</span>
                     </div>
                   </div>
                 </div>

@@ -205,16 +205,120 @@ export async function seedInitialDataIfEmpty() {
 // Admins Collection: Auth simulation query
 export async function validateAdminLogin(username: string, pin: string): Promise<boolean> {
   try {
-    const adminDocRef = doc(db, "admins", username);
+    const trimmedUser = username.trim();
+    const adminDocRef = doc(db, "admins", trimmedUser);
     const adminDoc = await getDoc(adminDocRef);
     if (adminDoc.exists()) {
       return adminDoc.data().pin === pin;
     }
+    // Fallback: search by username field
+    const q = query(collection(db, "admins"), where("username", "==", trimmedUser), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return snap.docs[0].data().pin === pin;
+    }
     return false;
   } catch (e) {
-    console.error(e);
+    console.error("validateAdminLogin error:", e);
     return false;
   }
+}
+
+export async function getAdminAccount(currentUsername?: string): Promise<{ username: string } | null> {
+  try {
+    if (currentUsername) {
+      const docSnap = await getDoc(doc(db, "admins", currentUsername.trim()));
+      if (docSnap.exists()) {
+        return { username: docSnap.data().username || currentUsername.trim() };
+      }
+    }
+    const snap = await getDocs(collection(db, "admins"));
+    if (!snap.empty) {
+      const d = snap.docs[0];
+      return { username: d.data().username || d.id };
+    }
+    return { username: "admin" };
+  } catch (e) {
+    console.error("Error loading admin account:", e);
+    return { username: currentUsername || "admin" };
+  }
+}
+
+export async function updateAdminCredentials(
+  currentUsername: string,
+  currentPin: string,
+  newUsername: string,
+  newPin: string
+): Promise<{ success: boolean; newUsername: string }> {
+  const curUser = currentUsername.trim();
+  const curPin = currentPin.trim();
+  const targetUser = newUsername.trim();
+  const targetPin = newPin.trim();
+
+  if (!targetUser || targetUser.length < 3) {
+    throw new Error("Username baru minimal harus 3 karakter.");
+  }
+  if (!targetPin || targetPin.length < 4) {
+    throw new Error("Password / PIN baru minimal harus 4 karakter.");
+  }
+
+  // Find current admin doc
+  let docRef = doc(db, "admins", curUser);
+  let docSnap = await getDoc(docRef);
+  let actualId = curUser;
+
+  if (!docSnap.exists()) {
+    // Try finding by username field
+    const q = query(collection(db, "admins"), where("username", "==", curUser), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      docSnap = snap.docs[0];
+      actualId = docSnap.id;
+      docRef = doc(db, "admins", actualId);
+    } else {
+      // Fallback if single admin doc exists in the database
+      const allAdmins = await getDocs(collection(db, "admins"));
+      if (allAdmins.size === 1) {
+        docSnap = allAdmins.docs[0];
+        actualId = docSnap.id;
+        docRef = doc(db, "admins", actualId);
+      } else {
+        throw new Error("Akun admin lama tidak ditemukan di sistem database.");
+      }
+    }
+  }
+
+  const existingData = docSnap.data();
+  if (existingData.pin !== curPin) {
+    throw new Error("Password / PIN lama saat ini tidak sesuai.");
+  }
+
+  // If username changes, check if the new username is already taken
+  if (targetUser !== actualId) {
+    const targetDocSnap = await getDoc(doc(db, "admins", targetUser));
+    if (targetDocSnap.exists() && targetDocSnap.id !== actualId) {
+      throw new Error(`Username "${targetUser}" sudah terdaftar oleh akun lain.`);
+    }
+
+    // Atomic write batch to move document
+    const batch = writeBatch(db);
+    batch.set(doc(db, "admins", targetUser), {
+      username: targetUser,
+      pin: targetPin,
+      updatedAt: new Date().toISOString()
+    });
+    batch.delete(docRef);
+    await batch.commit();
+  } else {
+    // Same ID, update credentials
+    await setDoc(docRef, {
+      username: targetUser,
+      pin: targetPin,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  }
+
+  return { success: true, newUsername: targetUser };
 }
 
 // Packages Service

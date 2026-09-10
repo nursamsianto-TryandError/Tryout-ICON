@@ -2,14 +2,16 @@ import React, { useState, useEffect } from "react";
 import { 
   getAllPackages, savePackage, deletePackage, 
   getQuestionsForPackage, saveQuestion, deleteQuestion, 
-  getAllResults, deleteResult, deleteMultipleResults, saveBrandingSettings, DEFAULT_BRANDING
+  getAllResults, deleteResult, deleteMultipleResults, saveBrandingSettings, DEFAULT_BRANDING,
+  updateAdminCredentials, getAdminAccount
 } from "../services/dbService";
 import { TryoutPackage, Question, TryoutResult, BrandingSettings } from "../types";
 import { 
   LayoutDashboard, FolderKanban, HelpCircle, FileSpreadsheet, 
   Plus, Edit2, Trash2, CheckCircle2, XCircle, Search, 
   Download, Calendar, Award, GraduationCap, Clock, Filter, 
-  Check, AlertCircle, RefreshCw, Settings, Sparkles, Trophy, BookOpen, ShieldCheck, BrainCircuit, Zap
+  Check, AlertCircle, RefreshCw, Settings, Sparkles, Trophy, BookOpen, ShieldCheck, BrainCircuit, Zap,
+  KeyRound, Lock, Eye, EyeOff, User, Shield
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 
@@ -17,11 +19,13 @@ interface AdminPanelProps {
   onNotify: (message: string, type: "success" | "error" | "info") => void;
   branding?: BrandingSettings | null;
   onBrandingUpdate?: (settings: BrandingSettings) => void;
+  currentAdminUsername?: string;
+  onAdminUsernameChange?: (newUsername: string) => void;
 }
 
 type TabType = "dashboard" | "packages" | "questions" | "results" | "settings";
 
-export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelProps) {
+export function AdminPanel({ onNotify, branding, onBrandingUpdate, currentAdminUsername = "admin", onAdminUsernameChange }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [packages, setPackages] = useState<TryoutPackage[]>([]);
   const [results, setResults] = useState<TryoutResult[]>([]);
@@ -84,6 +88,87 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
     message: string;
     onConfirm: () => void;
   } | null>(null);
+
+  // Admin credentials management state
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [credLoading, setCredLoading] = useState(false);
+  const [showCurrentPin, setShowCurrentPin] = useState(false);
+  const [showNewPin, setShowNewPin] = useState(false);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
+  const [credForm, setCredForm] = useState({
+    currentUsername: currentAdminUsername || "admin",
+    currentPin: "",
+    newUsername: currentAdminUsername || "admin",
+    newPin: "",
+    confirmNewPin: ""
+  });
+
+  useEffect(() => {
+    if (currentAdminUsername) {
+      setCredForm((prev) => ({
+        ...prev,
+        currentUsername: currentAdminUsername,
+        newUsername: prev.newUsername || currentAdminUsername
+      }));
+    }
+  }, [currentAdminUsername]);
+
+  useEffect(() => {
+    getAdminAccount(currentAdminUsername).then((acc) => {
+      if (acc?.username) {
+        onAdminUsernameChange?.(acc.username);
+        setCredForm((prev) => ({
+          ...prev,
+          currentUsername: acc.username,
+          newUsername: prev.newUsername || acc.username
+        }));
+      }
+    });
+  }, []);
+
+  const handleUpdateCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!credForm.currentPin.trim()) {
+      onNotify("Harap masukkan password/PIN saat ini untuk otorisasi.", "error");
+      return;
+    }
+    if (!credForm.newUsername.trim() || credForm.newUsername.trim().length < 3) {
+      onNotify("Username baru minimal 3 karakter.", "error");
+      return;
+    }
+    if (!credForm.newPin.trim() || credForm.newPin.trim().length < 4) {
+      onNotify("Password / PIN baru minimal 4 karakter.", "error");
+      return;
+    }
+    if (credForm.newPin.trim() !== credForm.confirmNewPin.trim()) {
+      onNotify("Konfirmasi password baru tidak cocok. Harap periksa kembali.", "error");
+      return;
+    }
+
+    setCredLoading(true);
+    try {
+      const res = await updateAdminCredentials(
+        credForm.currentUsername || currentAdminUsername || "admin",
+        credForm.currentPin.trim(),
+        credForm.newUsername.trim(),
+        credForm.newPin.trim()
+      );
+      onNotify(`Kredensial admin berhasil diperbarui! Username admin sekarang: "${res.newUsername}".`, "success");
+      onAdminUsernameChange?.(res.newUsername);
+      setCredForm({
+        currentUsername: res.newUsername,
+        currentPin: "",
+        newUsername: res.newUsername,
+        newPin: "",
+        confirmNewPin: ""
+      });
+      setAdminModalOpen(false);
+    } catch (err: any) {
+      onNotify("Gagal memperbarui kredensial: " + err.message, "error");
+    } finally {
+      setCredLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (branding) {
@@ -594,10 +679,19 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
             Manage tryout packages, formulate exam questions, and oversee system simulated outcomes.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAdminModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-750 shadow-xs hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-750 transition cursor-pointer"
+          >
+            <KeyRound className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <span>Ubah Akun / Password</span>
+          </button>
+
           <button
             onClick={loadData}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-750"
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-750 transition cursor-pointer"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh Data
@@ -605,7 +699,7 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
           
           <button
             onClick={() => handleOpenPkgModal(null)}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/15 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/15 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Create Package
@@ -1304,6 +1398,149 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
           {/* ======================================= TAB 5: PORTAL SETTINGS ======================================= */}
           {activeTab === "settings" && (
             <div className="space-y-6 animate-in fade-in duration-200">
+              
+              {/* Card: Keamanan & Kredensial Akun Admin */}
+              <div className="rounded-2xl border border-gray-150 bg-white p-6 shadow-xs dark:border-slate-850 dark:bg-slate-900">
+                <div className="border-b border-gray-100 pb-4 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                      <KeyRound className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      Keamanan & Kredensial Login Admin
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                      Perbarui username dan kata sandi (PIN) login administrator default untuk perlindungan akses simulator.
+                    </p>
+                  </div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-semibold self-start sm:self-auto">
+                    <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <span>Akun Aktif: <strong>{credForm.currentUsername || currentAdminUsername || "admin"}</strong></span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleUpdateCredentials} className="mt-6 space-y-4 text-xs">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {/* Password saat ini */}
+                    <div className="md:col-span-2">
+                      <label className="block font-bold text-gray-700 dark:text-slate-350 mb-1.5 uppercase tracking-wider text-[10px]">
+                        Password / PIN Saat Ini <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute top-3 left-3 h-4 w-4 text-gray-400" />
+                        <input
+                          type={showCurrentPin ? "text" : "password"}
+                          value={credForm.currentPin}
+                          onChange={(e) => setCredForm({ ...credForm, currentPin: e.target.value })}
+                          required
+                          placeholder="Masukkan password/PIN lama Anda saat ini untuk otorisasi"
+                          className="w-full rounded-lg border border-gray-250 bg-white py-2.5 pl-9 pr-10 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPin(!showCurrentPin)}
+                          className="absolute top-2.5 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          {showCurrentPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">
+                        Verifikasi keamanan diperlukan sebelum sistem mengubah kredensial database.
+                      </p>
+                    </div>
+
+                    {/* Username Baru */}
+                    <div className="md:col-span-2">
+                      <label className="block font-bold text-gray-700 dark:text-slate-350 mb-1.5 uppercase tracking-wider text-[10px]">
+                        Username Admin Baru <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <User className="absolute top-3 left-3 h-4 w-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={credForm.newUsername}
+                          onChange={(e) => setCredForm({ ...credForm, newUsername: e.target.value })}
+                          required
+                          minLength={3}
+                          placeholder="Masukkan username baru (min. 3 karakter)"
+                          className="w-full rounded-lg border border-gray-250 bg-white py-2.5 pl-9 pr-4 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password Baru */}
+                    <div>
+                      <label className="block font-bold text-gray-700 dark:text-slate-350 mb-1.5 uppercase tracking-wider text-[10px]">
+                        Password / PIN Baru <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="absolute top-3 left-3 h-4 w-4 text-gray-400" />
+                        <input
+                          type={showNewPin ? "text" : "password"}
+                          value={credForm.newPin}
+                          onChange={(e) => setCredForm({ ...credForm, newPin: e.target.value })}
+                          required
+                          minLength={4}
+                          placeholder="Password baru (min. 4 karakter)"
+                          className="w-full rounded-lg border border-gray-250 bg-white py-2.5 pl-9 pr-10 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPin(!showNewPin)}
+                          className="absolute top-2.5 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          {showNewPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Konfirmasi Password Baru */}
+                    <div>
+                      <label className="block font-bold text-gray-700 dark:text-slate-350 mb-1.5 uppercase tracking-wider text-[10px]">
+                        Konfirmasi Password / PIN Baru <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="absolute top-3 left-3 h-4 w-4 text-gray-400" />
+                        <input
+                          type={showConfirmPin ? "text" : "password"}
+                          value={credForm.confirmNewPin}
+                          onChange={(e) => setCredForm({ ...credForm, confirmNewPin: e.target.value })}
+                          required
+                          minLength={4}
+                          placeholder="Ulangi password baru"
+                          className="w-full rounded-lg border border-gray-250 bg-white py-2.5 pl-9 pr-10 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPin(!showConfirmPin)}
+                          className="absolute top-2.5 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          {showConfirmPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-slate-800">
+                    <button
+                      type="submit"
+                      disabled={credLoading}
+                      className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 font-bold text-white shadow-md shadow-blue-500/15 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 transition cursor-pointer"
+                    >
+                      {credLoading ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          Menyimpan Perubahan...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="h-4 w-4" />
+                          Simpan Kredensial Baru
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
               <div className="rounded-2xl border border-gray-150 bg-white p-6 shadow-xs dark:border-slate-850 dark:bg-slate-900">
                 <div className="border-b border-gray-100 pb-4 dark:border-slate-800">
                   <h3 className="text-sm font-bold text-gray-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
@@ -1867,6 +2104,162 @@ export function AdminPanel({ onNotify, branding, onBrandingUpdate }: AdminPanelP
                 Hapus (Confirm)
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Credentials Change Modal */}
+      {adminModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[3px] overflow-y-auto">
+          <div className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-2xl transition-all dark:bg-slate-900 border border-gray-150 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150 my-8">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-950 dark:text-white">
+                    Ubah Akun & Password Admin
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Akun Aktif: <span className="font-semibold text-blue-600 dark:text-blue-400">{credForm.currentUsername || currentAdminUsername || "admin"}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdminModalOpen(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateCredentials} className="mt-5 space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-gray-700 dark:text-slate-350 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Password / PIN Saat Ini <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="absolute top-3 left-3 h-4 w-4 text-gray-400" />
+                  <input
+                    type={showCurrentPin ? "text" : "password"}
+                    value={credForm.currentPin}
+                    onChange={(e) => setCredForm({ ...credForm, currentPin: e.target.value })}
+                    required
+                    placeholder="Masukkan password/PIN lama Anda saat ini"
+                    className="w-full rounded-lg border border-gray-250 bg-white py-2.5 pl-9 pr-10 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPin(!showCurrentPin)}
+                    className="absolute top-2.5 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    {showCurrentPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">
+                  Verifikasi keamanan kredensial lama diperlukan sebelum menyimpan.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 dark:text-slate-350 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Username Admin Baru <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute top-3 left-3 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={credForm.newUsername}
+                    onChange={(e) => setCredForm({ ...credForm, newUsername: e.target.value })}
+                    required
+                    minLength={3}
+                    placeholder="Username baru (cth: admin_icon)"
+                    className="w-full rounded-lg border border-gray-250 bg-white py-2.5 pl-9 pr-4 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block font-bold text-gray-700 dark:text-slate-350 mb-1.5 uppercase tracking-wider text-[10px]">
+                    Password / PIN Baru <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="absolute top-3 left-3 h-4 w-4 text-gray-400" />
+                    <input
+                      type={showNewPin ? "text" : "password"}
+                      value={credForm.newPin}
+                      onChange={(e) => setCredForm({ ...credForm, newPin: e.target.value })}
+                      required
+                      minLength={4}
+                      placeholder="Min. 4 karakter"
+                      className="w-full rounded-lg border border-gray-250 bg-white py-2.5 pl-9 pr-10 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPin(!showNewPin)}
+                      className="absolute top-2.5 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
+                    >
+                      {showNewPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-gray-700 dark:text-slate-350 mb-1.5 uppercase tracking-wider text-[10px]">
+                    Konfirmasi Password Baru <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="absolute top-3 left-3 h-4 w-4 text-gray-400" />
+                    <input
+                      type={showConfirmPin ? "text" : "password"}
+                      value={credForm.confirmNewPin}
+                      onChange={(e) => setCredForm({ ...credForm, confirmNewPin: e.target.value })}
+                      required
+                      minLength={4}
+                      placeholder="Ulangi password"
+                      className="w-full rounded-lg border border-gray-250 bg-white py-2.5 pl-9 pr-10 font-semibold text-gray-750 outline-none dark:border-slate-700 dark:bg-slate-850 dark:text-slate-300 focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPin(!showConfirmPin)}
+                      className="absolute top-2.5 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
+                    >
+                      {showConfirmPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 border-t border-gray-100 dark:border-slate-800 pt-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setAdminModalOpen(false)}
+                  className="rounded-lg bg-gray-100 px-4 py-2.5 font-semibold text-gray-750 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={credLoading}
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 font-bold text-white shadow-md shadow-blue-500/15 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 transition cursor-pointer"
+                >
+                  {credLoading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-4 w-4" />
+                      Simpan Kredensial
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
